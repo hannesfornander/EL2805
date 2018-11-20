@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import random as rnd
+import math
 
 
 def initBoard():
@@ -27,8 +28,8 @@ def initBoard():
 
 
 # return action and next state due to this
-def getActions(state):
-    right_list = [1, 5, 7, 9, 11, 13, 15, 17, 23, 27, 29]  # Cannot go right from these states
+def getActions(state, min):
+    right_list = [1, 5, 7, 9, 11, 13, 15, 17, 23, 27, 28, 29]  # Cannot go right from these states
     left_list = [0, 2, 6, 8, 10, 12, 14, 16, 18, 24, 28]  # Cannot go left from these states
     up_list = [0, 1, 2, 3, 4, 5, 16, 17, 25, 26, 27, 28]  # Cannot go up from these states
     down_list = [10, 11, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29]  # Cannot go down from these states
@@ -41,17 +42,22 @@ def getActions(state):
         actions.append('up')
     if state not in down_list:
         actions.append('down')
-    actions.append('still')
+    if state != 28:
+       actions.append('still')
+    if state == 28 or state == min:
+       actions.append('null')
     return actions
 
-
-def reward(state, action):
-    if state == 2:
-        return 100
+# returns value and a flag indicating end state
+def reward(state, minotaur_state, action):
+    if state == minotaur_state: # eaten
+        return -100, 0
+    if state == 28: # winning
+        return 100, 1
     if action != 'still':
-        return 10
+        return 0, 0
     else:
-        return 0
+        return 0, 0
 
 
 def getState(state, action):
@@ -65,6 +71,9 @@ def getState(state, action):
         state += 6
     return state
 
+def stateTable(pos,min_pos):
+    return pos + 30*min_pos
+
 
 # i varje steg, räkna ut V för varje state du kan befinna dig i, där V(s) = r(s) + värdet för den action som ger oss högst reward.
 # man räknar alltså ut värdet för alla actions du kan få utifrån det state du är i just nu.
@@ -72,34 +81,37 @@ def getState(state, action):
 def valueIteration(T=15):
     no_states = 30
     end_state = 28
-    V = [{key: [-1, 0] for key in range(no_states)} for i in
+    V = [{key: [-1, 0] for key in range(no_states**2)} for i in
          range(T)]  # T stycken Value dictionaries:( keys: states, values a list = [value, action])
-    V[0][end_state] = [100, 'still']  # define terminal state, V[0] is last step!!!
+    #V[0][end_state] = [100, 'null']    # define terminal state, V[0] is last step!!!
 
     for t in range(T):
-        v_list = V[t]  # values for all states at timestep 0 (which is last timestep)
+        v_list = V[t]   # values for all states at timestep 0 (which is last timestep)
         # must accumulate for each timestep!!
         for s in range(no_states):
-            actions = getActions(s)
-            r = {} # collect rewards for each action here
-            for a in actions:
-                resulting_state = getState(s, a)
-                r[a] = V[t - 1][resulting_state][0] if t > 0 else 0
-                r[a] += reward(s, a) # current reward TODO kontrollera det ackumulerade värdet!
-            best_value = max(r.values())
-            if best_value != 0:
+            for m in range(no_states): # sätt minotaur på varenda ställe
+                actions = getActions(s, m)
+                r = {} # collect rewards for each action here
+
+                for a in actions:
+                    resulting_state = getState(s, a)
+                    r[a] = V[t - 1][stateTable(resulting_state, m)][0] if t > 0 and a != 'null' else 0
+                    r[a] += reward(s, m, a)[0]
+
+                best_value = max(r.values())
                 best_actions = [key for (key, value) in r.items() if value == best_value]
-                best_action = best_actions[0] # if there are two choices with equal values
-            else:
-                best_action = 'null'
-            v_list[s] = [best_value, best_action]
+                best_action = best_actions[0] # TODO save all actions
+
+                v_list[stateTable(s, m)] = [best_value, best_action]
+
+
         V[t] = v_list
 
     return V
 
 
 def getPolicy(V):
-    T = len(V)
+    T = len(V) - 1
     pi = [0 for i in range(T)]
     state_progression = [0 for i in range(T+1)]
     state = 0
@@ -168,7 +180,7 @@ def drawPath(our_path, taur_path = []):
     x, y = transformPath(our_path)
     #print(x,y)
     for i in range(len(our_path) - 1):
-        plt.plot([x[i], x[i + 1]], [y[i], y[i + 1]], 'o-')
+        plt.plot([x[i], x[i + 1]], [y[i], y[i + 1]], 'ro-')
        # print(x[i], y[i])
        # plt.plot([xt[i], xt[i + 1]], [yt[i], yt[i + 1]], 'r-')
         plt.draw()
@@ -176,7 +188,7 @@ def drawPath(our_path, taur_path = []):
 
 def transformPath(path, w = 6):
     x = [(x % w) + 0.5 for x in path]
-    y = [4 - round(y/w) + 0.5 for y in path] # TODO double-check this
+    y = [4 - math.floor(y/w) + 0.5 for y in path] # TODO double-check this
     return x,y
 
 
