@@ -42,16 +42,36 @@ def getActions(state, min):
         actions.append('up')
     if state not in down_list:
         actions.append('down')
-    if state != 28:
+    if state != 28 and state != min:
        actions.append('still')
     if state == 28 or state == min:
        actions.append('null')
+    return actions
+
+# Possible actions for minotaur
+def getTaurActions(state):
+    right_list = [5, 11, 17, 23, 29]  # Cannot go right from these states
+    left_list = [0, 6, 12, 18, 24]  # Cannot go left from these states
+    up_list = [0, 1, 2, 3, 4, 5]  # Cannot go up from these states
+    down_list = [24, 25, 26, 27, 28, 29]  # Cannot go down from these states
+    actions = []  # right, left, up ,down
+    if state not in right_list:
+        actions.append('right')
+    if state not in left_list:
+        actions.append('left')
+    if state not in up_list:
+        actions.append('up')
+    if state not in down_list:
+        actions.append('down')
+    actions.append('still') # TODO uncomment when he can stand still
     return actions
 
 # returns value and a flag indicating end state
 def reward(state, minotaur_state, action):
     if state == minotaur_state: # eaten
         return -100, 0
+    if state == minotaur_state - 1 or state == minotaur_state + 1 or state == minotaur_state - 6 or state == minotaur_state + 6: # close to minotaur
+         return -10, 0
     if state == 28: # winning
         return 100, 1
     if action != 'still':
@@ -71,8 +91,8 @@ def getState(state, action):
         state += 6
     return state
 
-def stateTable(pos,min_pos):
-    return pos + 30*min_pos
+def stateTable(pos, min_pos):
+    return min_pos + 30*pos
 
 
 # i varje steg, räkna ut V för varje state du kan befinna dig i, där V(s) = r(s) + värdet för den action som ger oss högst reward.
@@ -81,7 +101,7 @@ def stateTable(pos,min_pos):
 def valueIteration(T=15):
     no_states = 30
     end_state = 28
-    V = [{key: [-1, 0] for key in range(no_states**2)} for i in
+    V = [{key: [0, 0] for key in range(no_states**2)} for i in
          range(T)]  # T stycken Value dictionaries:( keys: states, values a list = [value, action])
     #V[0][end_state] = [100, 'null']    # define terminal state, V[0] is last step!!!
 
@@ -90,20 +110,23 @@ def valueIteration(T=15):
         # must accumulate for each timestep!!
         for s in range(no_states):
             for m in range(no_states): # sätt minotaur på varenda ställe
+                # taur_actions = getTaurActions(m)
                 actions = getActions(s, m)
-                r = {} # collect rewards for each action here
-
+                min_actions = getTaurActions(m)
+                r = {} # collect rewards for each action here {key: action, value: value}
                 for a in actions:
                     resulting_state = getState(s, a)
-                    r[a] = V[t - 1][stateTable(resulting_state, m)][0] if t > 0 and a != 'null' else 0
-                    r[a] += reward(s, m, a)[0]
+                    #r[a] = 0
+                    #for m_a in min_actions:
+                     #   res_min = getState(m, m_a)
+                    r[a] = V[t - 1][stateTable(resulting_state, m)][0] if t > 0 else 0
+                    r[a] += reward(s, m, a)[0] # current reward
 
                 best_value = max(r.values())
                 best_actions = [key for (key, value) in r.items() if value == best_value]
-                best_action = best_actions[0] # TODO save all actions
+                best_action = best_actions[0] # TODO save all actions?
 
                 v_list[stateTable(s, m)] = [best_value, best_action]
-
 
         V[t] = v_list
 
@@ -118,13 +141,44 @@ def getPolicy(V):
     p = V[::-1]
     for t in range(T):
         action = p[t][state][1]
-        print(action)
-        print(state)
         state = getState(state, action)
         state_progression[t+1] = state
         pi[t] = action
 
     return pi, state_progression
+
+def createTaurPath(T):
+    taur_path = []# np.zeros((T, 1))
+    #taur_path[0, 0] = 28
+    taur_path.append(28)
+    for t in range(T-1):
+        state = taur_path[t]
+        actions = getTaurActions(state)
+        a = actions[rnd.randint(0, len(actions)-1)]
+        #taur_path[t + 1, 0] = getState(state, a)
+        taur_path.append(getState(state, a))
+       # print(taur_path)
+
+    return taur_path
+
+def simulate(V):
+    T = len(V)-1
+    state_progression = []
+    pi = []
+    taur_path = createTaurPath(T + 1)
+    state_progression.append(0)
+    p = V[::-1]
+    for t in range(T):
+        state = int(state_progression[t])
+        taur_state = int(taur_path[t])
+        action = p[t][stateTable(state, taur_state)][1]
+        next_state = getState(state, action)
+        state_progression.append(next_state)
+        pi.append(action)
+
+    return state_progression, pi, taur_path
+
+
 
 
 def bellman(trans_matrix, T=15):
@@ -171,24 +225,53 @@ def drawLabyrinth(w=6, h=5):
 
 
 # best probably to let it finish simulating first, save the path, then draw the path to the plot
-def drawPath(our_path, taur_path = []):
+def drawPath(our_path, taur_path):
     w = 5
     h = 4
     # our_path = [[rnd.randint(0, w)+0.5, rdm.randint(0, h)+0.5] for i in range(T)]
    # taur_path = [[rnd.randint(0, w) + 0.5, rdm.randint(0, h) + 0.5] for i in range(len(our_path))]
 
     x, y = transformPath(our_path)
-    #print(x,y)
+    xt, yt = transformPath(taur_path)
     for i in range(len(our_path) - 1):
-        plt.plot([x[i], x[i + 1]], [y[i], y[i + 1]], 'ro-')
-       # print(x[i], y[i])
-       # plt.plot([xt[i], xt[i + 1]], [yt[i], yt[i + 1]], 'r-')
+        plt.plot([x[i], x[i + 1]], [y[i], y[i + 1]], 'bo-')
+       # print(xt[i], yt[i])
+        plt.plot([xt[i], xt[i + 1]], [yt[i], yt[i + 1]], 'ro-')
         plt.draw()
+
+def drawPolicy(V):
+    w = 5
+    h = 4
+    offset = 0.4
+    min_pos = 15
+    step = 7
+    xt, yt = transformState(min_pos)
+
+    for i in range(30):
+        actions = V[step][stateTable(i, min_pos)][1]
+        for action in actions:
+            x, y = transformState(i)
+            if action == 'up':
+                plt.arrow(x, y, dx = 0, dy = offset, head_width = 0.1, head_length= 0.1)
+            if action == 'down':
+                plt.arrow(x, y, dx = 0, dy = -offset, head_width = 0.1, head_length= 0.1)
+            if action == 'right':
+                plt.arrow(x, y, dx= offset, dy=0, head_width = 0.1, head_length= 0.1)
+            if action == 'left':
+                plt.arrow(x, y, dx= -offset, dy=0, head_width = 0.1, head_length= 0.1)
+        plt.draw()
+    plt.plot(xt, yt, 'ro') #print minotaur position
+    plt.draw()
 
 
 def transformPath(path, w = 6):
     x = [(x % w) + 0.5 for x in path]
-    y = [4 - math.floor(y/w) + 0.5 for y in path] # TODO double-check this
+    y = [4 - math.floor(y/w) + 0.5 for y in path]
+    return x,y
+
+def transformState(i, w = 6):
+    x = (i % w) + 0.5
+    y = 4 - math.floor(i/w) + 0.5
     return x,y
 
 
@@ -200,13 +283,17 @@ def main():
     # pi = bellman(trans_matrix)
     # print(pi)
     V = valueIteration()
-    pi, path = getPolicy(V)
-    print(path)
+   # pi, path = getPolicy(V)
+    #print(path)
+    our_path, pi, taur_path = simulate(V)
 
-
-
+    print(pi)
+    print(our_path)
+   # print(taur_path)
+    #print(V)
     drawLabyrinth()
-    drawPath(path)
+    drawPath(our_path, taur_path)
+   # drawPolicy(V)
     plt.show()
 
 
