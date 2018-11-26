@@ -4,8 +4,8 @@ import random as rnd
 import math
 
 
-def initBoard():
-    board_mtx = np.zeros((30, 30))
+def initTransitionMatrix():
+    transition_mtx = np.zeros((30, 30))
 
     right_list = [1, 5, 7, 9, 11, 13, 15, 17, 23, 27, 29]  # Cannot go right from these states
     left_list = [0, 2, 6, 8, 10, 12, 14, 16, 18, 24, 28]  # Cannot go left from these states
@@ -15,17 +15,47 @@ def initBoard():
     for i in range(30):
         for j in range(30):
             if j == i:
-                board_mtx[i, j] = 1
+                transition_mtx[i, j] = 1
             elif (j == i + 1) and (i not in right_list):
-                board_mtx[i, j] = 1
+                transition_mtx[i, j] = 1
             elif (j == i - 1) and (i not in left_list):
-                board_mtx[i, j] = 1
+                transition_mtx[i, j] = 1
             elif (j == i - 6) and (i not in up_list):
-                board_mtx[i, j] = 1
+                transition_mtx[i, j] = 1
             elif (j == i + 6) and (i not in down_list):
-                board_mtx[i, j] = 1
-    return board_mtx
+                transition_mtx[i, j] = 1
 
+    for i in range(transition_mtx.shape[0]):
+        transition_mtx[i] /= np.sum(transition_mtx[i])
+
+    return transition_mtx
+
+
+def initTaurTransitionMatrix(still = False):
+    transition_mtx = np.zeros((30, 30))
+
+    right_list = [5, 11, 13, 17, 23, 29]  # Cannot go right from these states
+    left_list = [0, 6, 8, 12, 18, 24]  # Cannot go left from these states
+    up_list = [0, 1, 2, 3, 4, 5]  # Cannot go up from these states
+    down_list = [24, 25, 26, 27, 28, 29]  # Cannot go down from these states
+
+    for i in range(30):
+        for j in range(30):
+            if j == i and still:
+                transition_mtx[i, j] = 1
+            elif (j == i + 1) and (i not in right_list):
+                transition_mtx[i, j] = 1
+            elif (j == i - 1) and (i not in left_list):
+                transition_mtx[i, j] = 1
+            elif (j == i - 6) and (i not in up_list):
+                transition_mtx[i, j] = 1
+            elif (j == i + 6) and (i not in down_list):
+                transition_mtx[i, j] = 1
+
+    for i in range(transition_mtx.shape[0]):
+        transition_mtx[i] /= np.sum(transition_mtx[i])
+
+    return transition_mtx
 
 # return action and next state due to this
 def getActions(state, min):
@@ -34,6 +64,8 @@ def getActions(state, min):
     up_list = [0, 1, 2, 3, 4, 5, 16, 17, 25, 26, 27, 28]  # Cannot go up from these states
     down_list = [10, 11, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29]  # Cannot go down from these states
     actions = []  # right, left, up ,down
+    if state == 28 or state == min:
+        return ['null']
     if state not in right_list:
         actions.append('right')
     if state not in left_list:
@@ -44,8 +76,6 @@ def getActions(state, min):
         actions.append('down')
     if state != 28 and state != min:
        actions.append('still')
-    if state == 28 or state == min:
-       actions.append('null')
     return actions
 
 # Possible actions for minotaur
@@ -68,16 +98,18 @@ def getTaurActions(state):
 
 # returns value and a flag indicating end state
 def reward(state, minotaur_state, action):
+    if action == 'null':
+        return 0
     if state == minotaur_state: # eaten
-        return -100, 0
-    if state == minotaur_state - 1 or state == minotaur_state + 1 or state == minotaur_state - 6 or state == minotaur_state + 6: # close to minotaur
-         return -10, 0
+        return -100
+    #if state == minotaur_state - 1 or state == minotaur_state + 1 or state == minotaur_state - 6 or state == minotaur_state + 6: # close to minotaur
+    #     return -10, 0
     if state == 28: # winning
-        return 100, 1
+        return 100
     if action != 'still':
-        return 0, 0
+        return 0
     else:
-        return 0, 0
+        return 0
 
 
 def getState(state, action):
@@ -120,7 +152,7 @@ def valueIteration(T=15):
                     #for m_a in min_actions:
                      #   res_min = getState(m, m_a)
                     r[a] = V[t - 1][stateTable(resulting_state, m)][0] if t > 0 else 0
-                    r[a] += reward(s, m, a)[0] # current reward
+                    r[a] += reward(s, m, a) # current reward
 
                 best_value = max(r.values())
                 best_actions = [key for (key, value) in r.items() if value == best_value]
@@ -176,6 +208,7 @@ def simulate(V):
         state_progression.append(next_state)
         pi.append(action)
 
+    print(taur_path)
     return state_progression, pi, taur_path
 
 
@@ -275,26 +308,55 @@ def transformState(i, w = 6):
     return x,y
 
 
+def bellman2(taur_transition_mtx, T=15):
+    n_states = 30
+    V = [{key: [0, 0] for key in range(n_states ** 2)} for i in range(T)]
+
+    for t in range(T):
+        for i in range(n_states):
+            V[t][stateTable(i, i)] = [0, 'null']
+            V[t][stateTable(28, i)] = [100, 'null']
+
+    for t in range(1, T):
+        v_temp = V[t]
+        for s in range(n_states):
+            for m in range(n_states):
+                actions = getActions(s, m)
+                if actions[0] != 'null':
+                    taur_actions = getTaurActions(m)
+                    r = {}
+                    for a in actions:
+                        res_s = getState(s, a)
+                        r[a] = reward(s, m, a)
+                        for a_m in taur_actions:
+                            res_m = getState(m, a_m)
+                            r[a] += taur_transition_mtx[m, res_m]*V[t-1][stateTable(res_s, res_m)][0]
+                    best_value = max(r.values())
+                    best_actions = [key for (key, value) in r.items() if value == best_value]
+                    best_action = best_actions[0]
+                    v_temp[stateTable(s, m)] = [best_value, best_action]
+        V[t] = v_temp
+
+    return V
+
 
 def main():
-    trans_matrix = initBoard()
-    # print(trans_matrix)
+    transition_mtx = initTransitionMatrix()
+    taur_transition_mtx = initTaurTransitionMatrix()
     # initTransitionMatrix()
     # pi = bellman(trans_matrix)
     # print(pi)
-    V = valueIteration()
-   # pi, path = getPolicy(V)
+    # pi, path = getPolicy(V)
     #print(path)
-    our_path, pi, taur_path = simulate(V)
 
+    V = bellman2(taur_transition_mtx)
+    our_path, pi, taur_path = simulate(V)
     print(pi)
     print(our_path)
-   # print(taur_path)
-    #print(V)
-    drawLabyrinth()
-    drawPath(our_path, taur_path)
-   # drawPolicy(V)
-    plt.show()
+    #drawLabyrinth()
+    #drawPath(our_path, taur_path)
+    #drawPolicy(V)
+    #plt.show()
 
 
 main()
