@@ -276,8 +276,8 @@ def drawPolicy(V):
     w = 5
     h = 4
     offset = 0.4
-    min_pos = 15
-    step = 7
+    min_pos = 9
+    step = 14
     xt, yt = transformState(min_pos)
 
     for i in range(30):
@@ -292,6 +292,22 @@ def drawPolicy(V):
                 plt.arrow(x, y, dx= offset, dy=0, head_width = 0.1, head_length= 0.1)
             if action == 'left':
                 plt.arrow(x, y, dx= -offset, dy=0, head_width = 0.1, head_length= 0.1)
+        plt.draw()
+    plt.plot(xt, yt, 'ro') #print minotaur position
+    plt.draw()
+
+def drawValueFunction(V):
+    w = 5
+    h = 4
+    min_pos = 28
+    step = 14
+    xt, yt = transformState(min_pos)
+
+    for i in range(30):
+        value = V[step][stateTable(i, min_pos)][0]
+        x, y = transformState(i)
+        offset = 0.2
+        plt.text(x-offset, y, round(value, 2))
         plt.draw()
     plt.plot(xt, yt, 'ro') #print minotaur position
     plt.draw()
@@ -333,7 +349,7 @@ def bellman2(taur_transition_mtx, T=15):
                             r[a] += taur_transition_mtx[m, res_m]*V[t-1][stateTable(res_s, res_m)][0]
                     best_value = max(r.values())
                     best_actions = [key for (key, value) in r.items() if value == best_value]
-                    best_action = best_actions[0]
+                    best_action = best_actions
                     v_temp[stateTable(s, m)] = [best_value, best_action]
         V[t] = v_temp
 
@@ -342,7 +358,7 @@ def bellman2(taur_transition_mtx, T=15):
 
 def main():
     transition_mtx = initTransitionMatrix()
-    taur_transition_mtx = initTaurTransitionMatrix()
+    taur_transition_mtx = initTaurTransitionMatrix(True)
     # initTransitionMatrix()
     # pi = bellman(trans_matrix)
     # print(pi)
@@ -353,10 +369,11 @@ def main():
     our_path, pi, taur_path = simulate(V)
     print(pi)
     print(our_path)
-    #drawLabyrinth()
+    drawLabyrinth()
+    drawValueFunction(V)
     #drawPath(our_path, taur_path)
     #drawPolicy(V)
-    #plt.show()
+    plt.show()
 
 
 main()
