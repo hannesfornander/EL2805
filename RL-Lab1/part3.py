@@ -101,10 +101,10 @@ def getQMax(Q, st):
     return max(Q_list)
 
 
-def reward(pos, pos_p):
-    if pos == pos_p:
+def reward(s):
+    if s % 17 == 0:
         return -10
-    elif pos == 5:
+    elif s % 16 == 5:
         return 1
     else:
         return 0
@@ -114,40 +114,40 @@ def QLearning():
     n_actions_max = 5
     lmbda = 0.8
 
-    Q = np.ones((n_states**2, n_actions_max))
+    Q = np.zeros((n_states**2, n_actions_max))
     ind_mtx = np.zeros((n_states**2, n_actions_max))
     st_list = []
     at_list = []
 
     t = 0
-    while t < 200000:
+    st = 0
+    while t < 100000000:
         Q_temp = Q
-        st, at = np.unravel_index(np.argmax(Q), Q.shape)
+        #st, at = np.unravel_index(np.argmax(Q), Q.shape)
+        actions = getActions(st)
+        at = rnd.randint(0,len(actions)-1)
         ind_mtx[st, at] += 1
         n = ind_mtx[st, at]
-        alpha = 1 / (n + 1)
+        alpha = 1 / (n**(2/3))
 
         Q_max = getQMax(Q, st)
-
-        for pos in range(n_states):
-            for pos_p in range(n_states):
-                actions = getActions(pos)
-                for a in range(len(actions)):
-                    Q_temp[stateTable(pos, pos_p), a] = Q[stateTable(pos, pos_p), a] + ind(pos, a, st, at) * alpha * (reward(pos, pos_p) + lmbda*Q_max - Q[st, at])
+        Q_temp[st, at] = Q[st, at] + alpha * (reward(st) + lmbda*Q_max - Q[st, at])
 
         Q = Q_temp
         t += 1
-        if t % 1000 == 0:
-            print(t)
+        st = getState(st,actions[at])
+        if t % 100000 == 0:
+            print(st)
+            print("Almost done: ", t/1000000, "%")
 
-    print(np.max(Q, 0))
-    print(np.max(Q, 1))
+    print(Q)
 
 def SARSA():
     pass
 
 
 def main():
+    np.set_printoptions(threshold = np.nan)
     LEARNING_TYPE = 'Q_LEARNING' # 'SARSA'
 
     if LEARNING_TYPE == 'Q_LEARNING':
