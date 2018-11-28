@@ -127,43 +127,6 @@ def stateTable(pos, min_pos):
     return min_pos + 30*pos
 
 
-# i varje steg, räkna ut V för varje state du kan befinna dig i, där V(s) = r(s) + värdet för den action som ger oss högst reward.
-# man räknar alltså ut värdet för alla actions du kan få utifrån det state du är i just nu.
-
-def valueIteration(T=15):
-    no_states = 30
-    end_state = 28
-    V = [{key: [0, 0] for key in range(no_states**2)} for i in
-         range(T)]  # T stycken Value dictionaries:( keys: states, values a list = [value, action])
-    #V[0][end_state] = [100, 'null']    # define terminal state, V[0] is last step!!!
-
-    for t in range(T):
-        v_list = V[t]   # values for all states at timestep 0 (which is last timestep)
-        # must accumulate for each timestep!!
-        for s in range(no_states):
-            for m in range(no_states): # sätt minotaur på varenda ställe
-                # taur_actions = getTaurActions(m)
-                actions = getActions(s, m)
-                min_actions = getTaurActions(m)
-                r = {} # collect rewards for each action here {key: action, value: value}
-                for a in actions:
-                    resulting_state = getState(s, a)
-                    #r[a] = 0
-                    #for m_a in min_actions:
-                     #   res_min = getState(m, m_a)
-                    r[a] = V[t - 1][stateTable(resulting_state, m)][0] if t > 0 else 0
-                    r[a] += reward(s, m, a) # current reward
-
-                best_value = max(r.values())
-                best_actions = [key for (key, value) in r.items() if value == best_value]
-                best_action = best_actions[0] # TODO save all actions?
-
-                v_list[stateTable(s, m)] = [best_value, best_action]
-
-        V[t] = v_list
-
-    return V
-
 
 def getPolicy(V):
     T = len(V) - 1
@@ -193,56 +156,23 @@ def createTaurPath(T):
 
     return taur_path
 
-def simulate(V):
-    T = len(V)-1
+def simulate(pi):
+    T = len(pi)-1
     state_progression = []
-    pi = []
+    pi_sim = []
     taur_path = createTaurPath(T + 1)
     state_progression.append(0)
-    p = V[::-1]
+    p = pi[::-1]
     for t in range(T):
         state = int(state_progression[t])
         taur_state = int(taur_path[t])
-        action = p[t][stateTable(state, taur_state)][1]
+        action = p[t][stateTable(state, taur_state)]
         next_state = getState(state, action)
         state_progression.append(next_state)
-        pi.append(action)
+        pi_sim.append(action)
 
     print(taur_path)
-    return state_progression, pi, taur_path
-
-
-
-
-def bellman(trans_matrix, T=15):
-    end_state = 29
-    # pi = -np.ones((1,T))
-    pi = np.zeros((1, 30))
-    state = end_state
-    u = -np.ones((1, 30))
-    u_prev = 0
-    # for t in range(T):
-    for s in range(30):
-        A = getActions(state, trans_matrix)  # define available actions, do we need taur_pos as arg?
-        u_temp = 0
-        state_curr = state
-        print('....')
-        for action in A:
-            pos_state = getState(state_curr, action)
-            print(pos_state)
-
-            r = reward(pos_state, action)
-            # u(0,pos_state) = r + u_prev
-            print(u)
-
-            if u > u_temp:
-                u_temp = u(0, pos_state)
-                state = pos_state
-
-        u_prev += u_temp
-    # pi[0,t] = state
-    pi[0, s] = state
-    return pi
+    return state_progression, pi_sim, taur_path
 
 
 def drawLabyrinth(w=6, h=5):
@@ -272,16 +202,16 @@ def drawPath(our_path, taur_path):
         plt.plot([xt[i], xt[i + 1]], [yt[i], yt[i + 1]], 'ro-')
         plt.draw()
 
-def drawPolicy(V):
+def drawPolicy(pi):
     w = 5
     h = 4
     offset = 0.3
-    min_pos = 9
+    min_pos = 28
     step = 11
     xt, yt = transformState(min_pos)
 
     for i in range(30):
-        actions = V[step][stateTable(i, min_pos)][1]
+        actions = pi[stateTable(i, min_pos)] # add step dimension when finite time horizon
         for action in actions:
             x, y = transformState(i)
             if action == 'up':
@@ -306,7 +236,7 @@ def drawValueFunction(V):
     xt, yt = transformState(min_pos)
 
     for i in range(30):
-        value = V[step][stateTable(i, min_pos)][0]
+        value = V[stateTable(i, min_pos)]
         x, y = transformState(i)
         offset = 0.2
         plt.text(x-offset, y, round(value, 2))
@@ -326,14 +256,17 @@ def transformState(i, w = 6):
     return x,y
 
 
-def bellman2(taur_transition_mtx, T=15):
+def bellman(taur_transition_mtx, T=15):
     n_states = 30
-    V = [{key: [0, 0] for key in range(n_states ** 2)} for i in range(T)]
+    V = [{key: 0 for key in range(n_states ** 2)} for i in range(T)]
+    pi = [{key: '' for key in range(n_states ** 2)} for i in range(T)]
 
     for t in range(T):
         for i in range(n_states):
-            V[t][stateTable(i, i)] = [0, 'null']
-            V[t][stateTable(28, i)] = [100, 'null']
+            V[t][stateTable(i, i)] = 0
+            V[t][stateTable(28, i)] = 100
+            pi[t][stateTable(i, i)] = 'null'
+            pi[t][stateTable(28, i)] = 'null'
 
     for t in range(1, T):
         v_temp = V[t]
@@ -348,17 +281,57 @@ def bellman2(taur_transition_mtx, T=15):
                         r[a] = reward(s, m, a)
                         for a_m in taur_actions:
                             res_m = getState(m, a_m)
-                            r[a] += taur_transition_mtx[m, res_m]*V[t-1][stateTable(res_s, res_m)][0]
+                            r[a] += taur_transition_mtx[m, res_m]*V[t-1][stateTable(res_s, res_m)]
                     best_value = max(r.values())
                     best_actions = [key for (key, value) in r.items() if value == best_value]
                     best_action = best_actions[0]
-                    v_temp[stateTable(s, m)] = [best_value, best_action]
+                    v_temp[stateTable(s, m)] = best_value
+                    pi[t][stateTable(s, m)] = best_action
         V[t] = v_temp
 
-    return V
+    return V, pi
 
+def policyIteration(taur_transition_mtx):
+    n_states = 30
+    V = [0 for i in range(n_states**2)]
+    pi = ['' for i in range(n_states**2)]
+    pi_prev = ['' for i in range(n_states ** 2)]
+    #print(V)
+    lmbda = 1-(1/30)
+    for i in range(n_states):
+        V[stateTable(i, i)] = 0
+        V[stateTable(28, i)] = 100
+        pi[stateTable(i, i)] = 'null'
+        pi[stateTable(28, i)] = 'null'
+
+
+    while(pi != pi_prev):
+        pi_prev[:] = pi[:]
+        v_temp = V
+        for s in range(n_states):
+            for m in range(n_states):
+                actions = getActions(s, m)
+                if actions[0] != 'null':
+                    taur_actions = getTaurActions(m)
+                    r = {}
+                    for a in actions:
+                        res_s = getState(s, a)
+                        r[a] = reward(s, m, a)
+                        for a_m in taur_actions:
+                            res_m = getState(m, a_m)
+                            r[a] += lmbda*taur_transition_mtx[m, res_m]*V[stateTable(res_s, res_m)]
+                    best_value = max(r.values())
+                    best_actions = [key for (key, value) in r.items() if value == best_value]
+                    best_action = best_actions
+                    v_temp[stateTable(s, m)] = best_value
+                    pi[stateTable(s, m)] = best_action
+        V = v_temp
+    return V, pi
 
 def main():
+    # change in drawValue, drawPolicy, bellman and policyIteration so that actions and step works
+
+
     transition_mtx = initTransitionMatrix()
     taur_transition_mtx = initTaurTransitionMatrix(True)
     # initTransitionMatrix()
@@ -367,14 +340,15 @@ def main():
     # pi, path = getPolicy(V)
     #print(path)
 
-    V = bellman2(taur_transition_mtx)
-    our_path, pi, taur_path = simulate(V)
+    #V, pi = bellman(taur_transition_mtx)
+    V, pi = policyIteration(taur_transition_mtx)
+    #our_path, pi_sim, taur_path = simulate(pi)
     print(pi)
-    print(our_path)
+    #print(our_path)
     drawLabyrinth()
-    #drawValueFunction(V)
-    drawPath(our_path, taur_path)
-    #drawPolicy(V)
+    drawValueFunction(V)
+    #drawPath(our_path, taur_path)
+    #drawPolicy(pi)
     plt.show()
 
 
