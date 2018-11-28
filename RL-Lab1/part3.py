@@ -91,12 +91,18 @@ def ind(s, a, st, at):
     else:
         return 0
 
+def getPos(st):
+    return np.unravel_index(st, (16, 16))
 
-def getQMax(Q, st):
-    actions = getActions(st)
+
+def getQMax(Q, st, action):
+    pos_p, pos = getPos(st)
+    next_pos = getState(pos,action)
+    actions = getActions(next_pos)
     Q_list = []
     for b in range(len(actions)):
-        st_next = getState(st, actions[b])
+        #pos_next = getState(pos, actions[b])
+        st_next = stateTable(next_pos, pos_p)
         Q_list.append(Q[st_next, b])
     return max(Q_list)
 
@@ -104,7 +110,7 @@ def getQMax(Q, st):
 def reward(s):
     if s % 17 == 0:
         return -10
-    elif s % 16 == 5:
+    elif 16 * 5 < s or s < 16 * 6 - 1:
         return 1
     else:
         return 0
@@ -120,27 +126,33 @@ def QLearning():
     at_list = []
 
     t = 0
-    st = 0
-    while t < 100000000:
+    max_t = 10000000
+    Q_plot = np.zeros((max_t, 1))
+    st = 15
+    while t < max_t:
         Q_temp = Q
-        #st, at = np.unravel_index(np.argmax(Q), Q.shape)
-        actions = getActions(st)
-        at = rnd.randint(0,len(actions)-1)
+        pos_p, pos = getPos(st)
+        actions = getActions(pos)
+        #at = np.argmax(Q[st,0:len(actions)])
+        #print(at)
+        at = rnd.randint(0, len(actions)-1)
         ind_mtx[st, at] += 1
         n = ind_mtx[st, at]
         alpha = 1 / (n**(2/3))
 
-        Q_max = getQMax(Q, st)
+        Q_max = getQMax(Q, st, actions[at])
         Q_temp[st, at] = Q[st, at] + alpha * (reward(st) + lmbda*Q_max - Q[st, at])
 
         Q = Q_temp
+       # states[s] = stateTable(getState(pos,actions[at]), pos_p)
+        st = stateTable(getState(pos,actions[at]), pos_p)
+        Q_plot[t] = max(Q[15])
         t += 1
-        st = getState(st,actions[at])
         if t % 100000 == 0:
-            print(st)
-            print("Almost done: ", t/1000000, "%")
+            print("Almost done: ", t/100000, "%")
 
     print(Q)
+    return Q_plot
 
 def SARSA():
     pass
@@ -151,7 +163,9 @@ def main():
     LEARNING_TYPE = 'Q_LEARNING' # 'SARSA'
 
     if LEARNING_TYPE == 'Q_LEARNING':
-        QLearning()
+        Q_plot = QLearning()
+        plt.plot(Q_plot)
+        plt.show()
     elif LEARNING_TYPE == 'SARSA':
         SARSA()
 
