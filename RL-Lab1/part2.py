@@ -163,7 +163,10 @@ def policyIteration(police_transition_mtx, lmbda):
     pi = ['' for i in range(n_states**2)]
     pi_prev = ['p' for i in range(n_states ** 2)]
 
-    while pi != pi_prev:
+    #while pi != pi_prev:
+    epsilon = 0.001
+    delta = 1000
+    while delta > epsilon*(1-lmbda)/lmbda:
         pi_prev[:] = pi[:]
         v_temp = V
         for pos in range(n_states):
@@ -182,6 +185,7 @@ def policyIteration(police_transition_mtx, lmbda):
                 best_action = best_actions
                 v_temp[stateTable(pos, pos_p)] = best_value
                 pi[stateTable(pos, pos_p)] = best_action
+        delta = np.abs(np.array(v_temp) - np.array(V))
         V = v_temp
 
     return V, pi
@@ -191,7 +195,7 @@ def main():
     police_transition_mtx = initPoliceTransitionMatrix()
 
     precision = 0.01
-    lmbdas = [precision*i for i in range(int(1/precision))]
+    lmbdas = [precision*i for i in range(1, int(1/precision))]
     print(lmbdas)
 
     n_states = 18
@@ -205,9 +209,12 @@ def main():
             V_best = V
             pi_best = pi
 
+   # V, pi = policyIteration(police_transition_mtx, lmbda)
+
     print("Best lambda: ", lmbda_best)
     drawLabyrinth()
     #drawPolicy(pi_best)
+    plt.xlabel("Lambda = " + str(lmbda_best))
     drawValueFunction(V_best)
     plt.show()
 

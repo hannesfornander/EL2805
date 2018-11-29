@@ -147,11 +147,12 @@ def QLearning():
     return Q_plot
 
 
-def SARSA():
+
+
+def SARSA(eps):
     n_states = 16
     n_actions_max = 5
     lmbda = 0.8
-    eps = 0.1
 
     Q = np.zeros((n_states ** 2, n_actions_max))
     ind_mtx = np.zeros((n_states ** 2, n_actions_max))
@@ -191,23 +192,40 @@ def SARSA():
     return Q_plot
 
 
+
+
 def main():
     np.set_printoptions(threshold = np.nan)
-    LEARNING_TYPE = 'SARSA'
+    LEARNING_TYPE = 'QLEARNING'
 
     if LEARNING_TYPE == 'QLEARNING':
         Q_plot = QLearning()
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.set_xscale("log", nonposx='clip')
+        plt.xlabel('Iterations')
+        plt.ylabel('Value')
         plt.plot(Q_plot)
+        plt.xlim([0, 10000000])
+        plt.grid(True)
         plt.show()
     elif LEARNING_TYPE == 'SARSA':
-        Q_plot = SARSA()
+        epsilons = [0.1, 0.3, 0.5]
+        Q_plot1 = SARSA(epsilons[0])
+        Q_plot2 = SARSA(epsilons[1])
+        Q_plot3 = SARSA(epsilons[2])
+
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.set_xscale("log", nonposx='clip')
-        plt.plot(Q_plot)
+        plt.plot(Q_plot1)
+        plt.plot(Q_plot2)
+        plt.plot(Q_plot3)
+        plt.legend(('$\epsilon$ = 0.1', '$\epsilon$ = 0.3', '$\epsilon$ = 0.5'))
+        plt.xlabel('Iterations')
+        plt.ylabel('Value')
+        plt.xlim([0,10000000])
+        plt.grid(True)
         plt.show()
 
 main()
