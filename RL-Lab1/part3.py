@@ -95,25 +95,21 @@ def getPos(st):
     return np.unravel_index(st, (16, 16))
 
 
-def getQMax(Q, st, action):
-    pos_p, pos = getPos(st)
-    next_pos = getState(pos,action)
-    actions = getActions(next_pos)
-    Q_list = []
-    for b in range(len(actions)):
-        #pos_next = getState(pos, actions[b])
-        st_next = stateTable(next_pos, pos_p)
-        Q_list.append(Q[st_next, b])
-    return max(Q_list)
+def getQMax(Q, pos_next, pos_p):
+    actions = getActions(pos_next)
+    n_actions = len(actions)
+    st_next = stateTable(pos_next, pos_p)
+    return np.max(Q[st_next, 0:n_actions])
 
 
 def reward(s):
     if s % 17 == 0:
         return -10
-    elif 16 * 5 < s or s < 16 * 6 - 1:
+    elif 16 * 5 <= s <= 16 * 6 - 1:
         return 1
     else:
         return 0
+
 
 def QLearning():
     n_states = 16
@@ -122,52 +118,96 @@ def QLearning():
 
     Q = np.zeros((n_states**2, n_actions_max))
     ind_mtx = np.zeros((n_states**2, n_actions_max))
-    st_list = []
-    at_list = []
 
     t = 0
-    max_t = 10000000
-    Q_plot = np.zeros((max_t, 1))
+    t_max = 10000000
+    Q_plot = np.zeros((t_max, 1))
     st = 15
-    while t < max_t:
+    while t < t_max:
         Q_temp = Q
         pos_p, pos = getPos(st)
         actions = getActions(pos)
-        #at = np.argmax(Q[st,0:len(actions)])
-        #print(at)
-        at = rnd.randint(0, len(actions)-1)
+        at = rnd.randint(0, len(actions) - 1)
         ind_mtx[st, at] += 1
         n = ind_mtx[st, at]
         alpha = 1 / (n**(2/3))
 
-        Q_max = getQMax(Q, st, actions[at])
+        pos_next = getState(pos, actions[at])
+        Q_max = getQMax(Q, pos_next, pos_p)
         Q_temp[st, at] = Q[st, at] + alpha * (reward(st) + lmbda*Q_max - Q[st, at])
 
         Q = Q_temp
-       # states[s] = stateTable(getState(pos,actions[at]), pos_p)
-        st = stateTable(getState(pos,actions[at]), pos_p)
+        st = stateTable(pos_next, pos_p)
         Q_plot[t] = max(Q[15])
         t += 1
-        if t % 100000 == 0:
-            print("Almost done: ", t/100000, "%")
+        if t % (t_max/100) == 0:
+            print("Almost done: ", 100*t/t_max, "%")
 
     print(Q)
     return Q_plot
 
+
 def SARSA():
-    pass
+    n_states = 16
+    n_actions_max = 5
+    lmbda = 0.8
+    eps = 0.1
+
+    Q = np.zeros((n_states ** 2, n_actions_max))
+    ind_mtx = np.zeros((n_states ** 2, n_actions_max))
+
+    t = 0
+    t_max = 10000000
+    Q_plot = np.zeros((t_max, 1))
+    st = 15
+    while t < t_max:
+        Q_temp = Q
+        pos_p, pos = getPos(st)
+        actions = getActions(pos)
+        at = rnd.randint(0, len(actions) - 1)
+        ind_mtx[st, at] += 1
+        n = ind_mtx[st, at]
+        alpha = 1 / (n ** (2 / 3))
+
+        pos_next = getState(pos, actions[at])
+        actions_next = getActions(pos_next)
+        st_next = stateTable(pos_next, pos_p)
+        r = rnd.uniform(0, 1)
+        if t == 0 or r < eps:
+            at_next = rnd.randint(0, len(actions_next) - 1)
+        else:
+            at_next = np.argmax(Q[st_next, 0:len(actions_next)])
+
+        Q_temp[st, at] = Q[st, at] + alpha * (reward(st) + lmbda * Q[st_next, at_next] - Q[st, at])
+
+        Q = Q_temp
+        st = st_next
+        Q_plot[t] = max(Q[15])
+        t += 1
+        if t % (t_max/100) == 0:
+            print("Almost done: ", 100 * t / t_max, "%")
+
+    print(Q)
+    return Q_plot
 
 
 def main():
     np.set_printoptions(threshold = np.nan)
-    LEARNING_TYPE = 'Q_LEARNING' # 'SARSA'
+    LEARNING_TYPE = 'SARSA'
 
-    if LEARNING_TYPE == 'Q_LEARNING':
+    if LEARNING_TYPE == 'QLEARNING':
         Q_plot = QLearning()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_xscale("log", nonposx='clip')
         plt.plot(Q_plot)
         plt.show()
     elif LEARNING_TYPE == 'SARSA':
-        SARSA()
-
+        Q_plot = SARSA()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_xscale("log", nonposx='clip')
+        plt.plot(Q_plot)
+        plt.show()
 
 main()
