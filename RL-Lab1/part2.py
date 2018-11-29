@@ -139,6 +139,23 @@ def drawPolicy(pi):
     plt.plot(xt, yt, 'ro') #print minotaur position
     plt.draw()
 
+def drawValueFunction(V):
+    w = 5
+    h = 2
+    pos_p = 8
+    n_states = 18
+
+    xt, yt = transformState(pos_p)
+
+    for i in range(n_states):
+        value = V[stateTable(i, pos_p)]
+        x, y = transformState(i)
+        offset = 0.2
+        plt.text(x-offset, y, round(value, 2))
+        plt.draw()
+    plt.plot(xt, yt, 'ro')
+    plt.draw()
+
 
 def policyIteration(police_transition_mtx, lmbda):
     n_states = 18
@@ -190,7 +207,8 @@ def main():
 
     print("Best lambda: ", lmbda_best)
     drawLabyrinth()
-    drawPolicy(pi_best)
+    #drawPolicy(pi_best)
+    drawValueFunction(V_best)
     plt.show()
 
 
