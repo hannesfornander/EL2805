@@ -162,17 +162,17 @@ def createTaurPath(T, still_flag):
     return taur_path
 
 
-def simulate(pi, still_flag):
-    T = len(pi) - 1
+def simulate(pi, T, still_flag):
+     # p = lambda
     state_progression = []
     pi_sim = []
     taur_path = createTaurPath(T + 1, still_flag)
     state_progression.append(0)
-    p = pi[::-1]
+    p = pi[:-1]
     for t in range(T):
         state = int(state_progression[t])
         taur_state = int(taur_path[t])
-        action = p[t][stateTable(state, taur_state)]
+        action = p[stateTable(state, taur_state)] # change for time dimension
         action = action[0]
         next_state = getState(state, action)
         state_progression.append(next_state)
@@ -335,7 +335,7 @@ def policyIteration(taur_transition_mtx, still_flag):
     lmbda = 1 - (1 / 30)
     for i in range(n_states):
         V[stateTable(i, i)] = 0
-        V[stateTable(28, i)] = 100
+        V[stateTable(28, i)] = 1
         pi[stateTable(i, i)] = 'null'
         pi[stateTable(28, i)] = 'null'
 
@@ -362,6 +362,21 @@ def policyIteration(taur_transition_mtx, still_flag):
         V = v_temp
     return V, pi
 
+def sampleGeom(lmbd, itr, n_samples = 1000):
+    T = []
+    d = [lmbd**(k-1)*(1-lmbd) for k in range(1, n_samples)]
+    d = np.cumsum(d)
+    for i in range(itr):
+        s = rnd.uniform(0,1)
+        for k in range(n_samples-1):
+            if s < d[k]:
+                T.append(k)
+                break
+
+    return T
+
+
+
 def plotProb(V, T):
     plot_v = []
     for t in range(T):
@@ -374,24 +389,47 @@ def plotProb(V, T):
 def main():
     # change in drawValue, drawPolicy, bellman and policyIteration so that actions and step works
     still_flag = False
-    T = 50
+    T = 15
     itr = 10000
-    taur_transition_mtx = initTaurTransitionMatrix(still_flag)
-    V, pi = bellman(taur_transition_mtx, T, still_flag)
-   # V, pi = policyIteration(taur_transition_mtx, still_flag)
-    our_path, pi_sim, taur_path = simulate(pi, still_flag)
+    #taur_transition_mtx = initTaurTransitionMatrix(still_flag)
+    #V, pi = bellman(taur_transition_mtx, T, still_flag)
+    #V, pi = policyIteration(taur_transition_mtx, still_flag)
+    # success = 0
+    # avg_length = 0
+    # lmbd = 1 - 1/30
+    # T_vec = sampleGeom(lmbd, itr)
+    # print(T_vec)
+    # for i in range(itr):
+    #     T = T_vec[i]
+    #     our_path, pi_sim, taur_path = simulate(pi, T , still_flag)
+    #     if our_path[-1] == 28:
+    #         success += 1
+    #
+    #     avg_length += len(our_path) / itr
+    #
+    # print(success / itr)
+    #
+    # print(avg_length)
+    # print(taur_transition_mtx)
 
 
-    #drawLabyrinth()
+    #success, avg_length = simulateInf(pi, itr)
+  #
+    our_path = [0,1,7,13,19,20,21,21,22,23,29,29,29,29,28]
+    taur_path = [28,29,23,17,11,17,23,22, 16, 22, 21,20,21,20,21]
+    print(len(taur_path))
+    print(len(our_path))
+    #our_path = [0,1,7,13,19,20,21,21,15,21,22,23,29,29,28]
+   # taur_path= [28,27,21,22,16,17,16,22,16,10,11,17,11,17,17]
+    drawLabyrinth()
     #drawValueFunction(V)
-    #drawPath(our_path, taur_path)
+    drawPath(our_path, taur_path)
     #drawPolicy(pi)
     #plotProb(V,T)
+    #plt.savefig('1b_still.png')
     plt.show()
 
-    success, avg_length = simulateInf(pi, itr)
-    print(success / itr)
-    print(avg_length)
+
 
 
 main()

@@ -162,11 +162,12 @@ def policyIteration(police_transition_mtx, lmbda):
     V = [0 for i in range(n_states**2)]
     pi = ['' for i in range(n_states**2)]
     pi_prev = ['p' for i in range(n_states ** 2)]
-
-    #while pi != pi_prev:
     epsilon = 0.001
     delta = 1000
-    while delta > epsilon*(1-lmbda)/lmbda:
+
+    while pi != pi_prev:
+    #value iteration
+    #while delta > epsilon*(1-lmbda)/lmbda:
         pi_prev[:] = pi[:]
         v_temp = V
         for pos in range(n_states):
