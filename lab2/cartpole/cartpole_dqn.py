@@ -15,8 +15,8 @@ EPISODES = 1000 #Maximum number of episodes
 class DQNAgent:
     #Constructor for the agent (invoked when DQN is first called in main)
     def __init__(self, state_size, action_size):
-        self.check_solve = False	#If True, stop if you satisfy solution confition
-        self.render = False        #If you want to see Cartpole learning, then change to True
+        self.check_solve = True	#If True, stop if you satisfy solution condition
+        self.render = False   #If you want to see Cartpole learning, then change to True
 
         #Get size of state and action
         self.state_size = state_size
@@ -56,7 +56,11 @@ class DQNAgent:
         #Tip: Consult https://keras.io/getting-started/sequential-model-guide/
     def build_model(self):
         model = Sequential()
-        model.add(Dense(16, input_dim=self.state_size, activation='relu',
+        #nodes = 16
+        nodes = 32
+        model.add(Dense(nodes, input_dim=self.state_size, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(16, activation='relu',
                         kernel_initializer='he_uniform'))
         model.add(Dense(self.action_size, activation='linear',
                         kernel_initializer='he_uniform'))
@@ -155,6 +159,7 @@ class DQNAgent:
         pylab.savefig("scores.png")
 
 if __name__ == "__main__":
+
     #For CartPole-v0, maximum episode length is 200
     env = gym.make('CartPole-v0') #Generate Cartpole-v0 environment object from the gym library
     #Get state and action sizes from the environment
@@ -229,9 +234,9 @@ if __name__ == "__main__":
                 #Plot the play time for every episode
                 scores.append(score)
                 episodes.append(e)
-
-                print("episode:", e, "  score:", score," q_value:", max_q_mean[e],"  memory length:",
-                      len(agent.memory))
+                if e % 100 == 0:
+                    print("episode:", e, "  score:", score, " q_value:", max_q_mean[e], "  memory length:",
+                        len(agent.memory))
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
@@ -240,6 +245,6 @@ if __name__ == "__main__":
                 if agent.check_solve:
                     if np.mean(scores[-min(100, len(scores)):]) >= 195:
                         print("solved after", e-100, "episodes")
-                        agent.plot_data(episodes,scores,max_q_mean[:e+1])
+                        agent.plot_data(episodes, scores, max_q_mean[:e+1])
                         sys.exit()
     agent.plot_data(episodes,scores,max_q_mean)
