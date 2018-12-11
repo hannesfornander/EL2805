@@ -77,8 +77,15 @@ class DQNAgent:
         #Insert your e-greedy policy code here
         #Tip 1: Use the random package to generate a random action.
         #Tip 2: Use keras.model.predict() to compute Q-values from the state.
-        action = random.randrange(self.action_size)
-        return action
+
+        # action = random.randrange(self.action_size)
+
+        if random.uniform(0,1) < self.epsilon:
+            return random.randrange(self.action_size)
+
+        values = self.model.predict(state)
+        return np.argmax(values[0])
+
 ###############################################################################
 ###############################################################################
     #Save sample <s,a,r,s'> to the replay memory
@@ -87,16 +94,21 @@ class DQNAgent:
 
     #Sample <s,a,r,s'> from replay memory
     def train_model(self):
+
         if len(self.memory) < self.train_start: #Do not train if not enough memory
             return
         batch_size = min(self.batch_size, len(self.memory)) #Train on at most as many samples as you have in memory
+
+        # line 7
         mini_batch = random.sample(self.memory, batch_size) #Uniformly sample the memory buffer
         #Preallocate network and target network input matrices.
         update_input = np.zeros((batch_size, self.state_size)) #batch_size by state_size two-dimensional array (not matrix!)
         update_target = np.zeros((batch_size, self.state_size)) #Same as above, but used for the target network
         action, reward, done = [], [], [] #Empty arrays that will grow dynamically
 
+        # sampling line 7
         for i in range(self.batch_size):
+
             update_input[i] = mini_batch[i][0] #Allocate s(i) to the network input array from iteration i in the batch
             action.append(mini_batch[i][1]) #Store a(i)
             reward.append(mini_batch[i][2]) #Store r(i)
@@ -112,12 +124,19 @@ class DQNAgent:
         #Insert your Q-learning code here
         #Tip 1: Observe that the Q-values are stored in the variable target
         #Tip 2: What is the Q-value of the action taken at the last state of the episode?
+        # line 8-10
         for i in range(self.batch_size): #For every batch
-            target[i][action[i]] = random.randint(0,1)
+            #target[i][action[i]] = random.randint(0,1)
+            if done[i]:
+                target[i][action[i]] = reward[i] # last state of episode
+            else:
+                target[i][action[i]] = reward[i] + self.discount_factor * np.amax(target_val[i])
+
 ###############################################################################
 ###############################################################################
 
         #Train the inner loop network
+        #  line 11
         self.model.fit(update_input, target, batch_size=self.batch_size,
                        epochs=1, verbose=0)
         return
@@ -165,6 +184,7 @@ if __name__ == "__main__":
             state = next_state
 
     scores, episodes = [], [] #Create dynamically growing score and episode counters
+    # line 1
     for e in range(EPISODES):
         done = False
         score = 0
@@ -175,24 +195,35 @@ if __name__ == "__main__":
         max_q[e][:] = np.max(tmp, axis=1)
         max_q_mean[e] = np.mean(max_q[e][:])
 
+    # line 2
         while not done:
             if agent.render:
                 env.render() #Show cartpole animation
 
             #Get action for the current state and go one step in environment
+
+            # line 3
             action = agent.get_action(state)
+
+            # line 4
             next_state, reward, done, info = env.step(action)
             next_state = np.reshape(next_state, [1, state_size]) #Reshape next_state similarly to state
 
             #Save sample <s, a, r, s'> to the replay memory
+
+            # line 5
+
             agent.append_sample(state, action, reward, next_state, done)
             #Training step
+
+            # line 6
             agent.train_model()
             score += reward #Store episodic reward
             state = next_state #Propagate state
 
+            # line 14
             if done:
-                #At the end of very episode, update the target network
+                #At the end of every episode, update the target network
                 if e % agent.target_update_frequency == 0:
                     agent.update_target_model()
                 #Plot the play time for every episode
@@ -204,6 +235,8 @@ if __name__ == "__main__":
 
                 # if the mean of scores of last 100 episodes is bigger than 195
                 # stop training
+
+                # line 15
                 if agent.check_solve:
                     if np.mean(scores[-min(100, len(scores)):]) >= 195:
                         print("solved after", e-100, "episodes")
